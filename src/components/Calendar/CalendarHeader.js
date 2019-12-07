@@ -1,63 +1,73 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import classNames from 'classname'
+import React from 'react';
+import PropTypes from 'prop-types';
+import classNames from 'classname';
+import { injectIntl } from 'react-intl';
 
 /**
  * Calendar Header
- * @param {*} props 
+ * @param {*} props
  */
 const CalendarHeader = (props) => {
-  
   const {
     onPrevClick,
     onNextClick,
     hideNextBtn,
     hidePrevBtn,
     renderPrevBtn,
-    renderNextBtn
+    renderNextBtn,
+    intl: {
+      messages,
+    },
+    date,
+    onHeaderClick,
   } = props;
 
   const prevBtncls = classNames({
     'rdp__prev-btn': true,
-    'rdp--hidden': hidePrevBtn
-  })
+    'rdp--hidden': hidePrevBtn,
+  });
 
   const nextBtnCls = classNames({
     'rdp__next-btn': true,
-    'rdp--hidden': hideNextBtn
-  })
+    'rdp--hidden': hideNextBtn,
+  });
+
+
+  const year = date.get('year');
+  const month = date.get('month') + 1;
 
   return (
     <div className="rdp__title">
-      <span className={ prevBtncls } onClick={ onPrevClick }>
+      <span className={prevBtncls} onClick={onPrevClick}>
         { renderPrevBtn && renderPrevBtn() }
-      </span>   
-      <span className="rdp__title-center">
-        { props.children }
       </span>
-      <span className={ nextBtnCls } onClick={ onNextClick }>
+      <span className="rdp__title-center">
+        <span onClick={onHeaderClick}>
+          { `${year}${messages.year}${month}${messages.month}` }
+        </span>
+      </span>
+      <span className={nextBtnCls} onClick={onNextClick}>
         { renderNextBtn && renderNextBtn() }
       </span>
     </div>
-  )
-}
+  );
+};
 
-const propTypes = {
-  hidePrevBtn: PropTypes.bool.isRequired,
-  hideNextBtn: PropTypes.bool.isRequired,
+CalendarHeader.propTypes = {
+  hidePrevBtn: PropTypes.bool,
+  hideNextBtn: PropTypes.bool,
   onPrevClick: PropTypes.func,
   onNextClick: PropTypes.func,
   renderPrevBtn: PropTypes.func,
-  renderNextBtn: PropTypes.func
-}
+  renderNextBtn: PropTypes.func,
+  intl: PropTypes.shape().isRequired,
+  date: PropTypes.shape().isRequired,
+  onHeaderClick: PropTypes.func,
+};
 
-const defaultProps = {
+CalendarHeader.defaultProps = {
   hidePrevBtn: false,
   hideNextBtn: false,
-  defaultValue: PropTypes.object
-}
+};
 
-CalendarHeader.propTypes = propTypes
-CalendarHeader.defaultProps = defaultProps
-
-export default CalendarHeader
+export default injectIntl(CalendarHeader);

@@ -1,90 +1,108 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import moment from 'moment'
-import { CSSTransition } from 'react-transition-group'
-import { injectIntl } from 'react-intl'
-import { WEEK_DAYS } from '../../languages/en'
-import CalendarHeader from './CalendarHeader'
-import CalendarBody from './CalendarBody'
-import MonthPicker from '../MonthPicker'
-import { isMonthAfter, isMonthBefore, getFirstDayOfMonth, getLastDayOfMonth, isSameDay } from '../../utils/timer'
+import React from 'react';
+import PropTypes from 'prop-types';
+import moment from 'moment';
+import { CSSTransition } from 'react-transition-group';
+import CalendarHeader from './CalendarHeader';
+import CalendarBody from './CalendarBody';
+import MonthPicker from '../MonthPicker';
+import { isMonthAfter, isMonthBefore, getFirstDayOfMonth, getLastDayOfMonth, isSameDay, isDayBefore, isDayAfter } from '../../utils/timer';
+import {
+  MODE,
+} from '../../utils/helper';
 
 class Calendar extends React.PureComponent {
-
   constructor(props) {
-    super(props)
-
+    super(props);
+    const {
+      defaultValue,
+    } = props;
     this.state = {
-      mode: 'date',                       // current select mode
       animating: false,
-      containerHeight: 0,                 // height of container
-      containerWidth: 0,                  // width of container
-      defaultValue: props.defaultValue    // default is today
-    }
-
-    this.onPrevClick = this.onPrevClick.bind(this)
-    this.onNextClick = this.onNextClick.bind(this)
-    this.changeMode = this.changeMode.bind(this)
-    this.monthChange = this.monthChange.bind(this)
+      containerHeight: 0, // height of container
+      containerWidth: 0, // width of container
+      date: moment(defaultValue),
+    };
   }
 
   componentDidMount() {
-    this.resizeHandle = function() {
+    this.resizeHandle = () => {
       if (this.container) {
         this.setState({
           containerHeight: this.container.offsetHeight,
-          containerWidth: this.container.offsetWidth
-        })
+          containerWidth: this.container.offsetWidth,
+        });
       }
-    }.bind(this)
-    window.addEventListener('resize', this.resizeHandle)
-
+    };
+    window.addEventListener('resize', this.resizeHandle);
     this.setState({
       containerHeight: this.container.offsetHeight,
-      containerWidth: this.container.offsetWidth
-    })
+      containerWidth: this.container.offsetWidth,
+    });
   }
-  
+
+  componentDidUpdate() {
+    const {
+      minDate,
+      maxDate,
+      defaultValue,
+      onDateChange,
+    } = this.props;
+
+    if (minDate && isDayBefore(defaultValue, minDate)) {
+      onDateChange(minDate);
+    }
+
+    if (maxDate && isDayAfter(defaultValue, maxDate)) {
+      onDateChange(maxDate);
+    }
+
+    if (minDate && maxDate && isSameDay(minDate, maxDate)) {
+      onDateChange(minDate);
+    }
+  }
+
   componentWillUnmount() {
-    window.removeEventListener('resize', this.resizeHandle)
+    window.removeEventListener('resize', this.resizeHandle);
   }
 
   /**
    * check hide next btn
-   * @param {*} defaultValue
+   * @param {*} date
    * @param {*} maxDate
    */
-  checkIfHideNextBtn(defaultValue, maxDate) {
-    if (!maxDate) return false
-    const nextMonth = defaultValue.clone().add(1, 'month')
-    return !!(isMonthAfter(nextMonth, maxDate) || isSameDay(defaultValue, maxDate));
+  checkIfHideNextBtn = (date, maxDate) => {
+    if (!maxDate) return false;
+    const nextMonth = date.clone().add(1, 'month');
+    return !!(isMonthAfter(nextMonth, maxDate) || isSameDay(date, maxDate));
   }
 
   /**
    * check hide prev btn
-   * @param {*} defaultValue
+   * @param {*} date
    * @param {*} minDate
    */
-  checkIfHidePrevBtn(defaultValue, minDate) {
-    if (!minDate) return false
-    const prevMonth = defaultValue.clone().subtract(1, 'month')
-    return !!(isMonthBefore(prevMonth, minDate) || isSameDay(defaultValue, minDate));
+  checkIfHidePrevBtn = (date, minDate) => {
+    if (!minDate) return false;
+    const prevMonth = date.clone().subtract(1, 'month');
+    return !!(isMonthBefore(prevMonth, minDate) || isSameDay(date, minDate));
   }
 
   /**
    * prev btn click
    */
-  onPrevClick() {
-    const { minDate, onMonthChange } = this.props
-    const { defaultValue, animating } = this.state
+  onPrevClick = () => {
+    const { minDate, onMonthChange } = this.props;
+    const { date, animating } = this.state;
     if (!animating) {
-      const prevMonth = moment(defaultValue).subtract(1, 'month')
+      const prevMonth = moment(date).subtract(1, 'month');
       if (!isMonthAfter(getFirstDayOfMonth(minDate), getFirstDayOfMonth(prevMonth))) {
-        onMonthChange && onMonthChange(prevMonth.clone())
+        if (typeof onMonthChange === 'function') {
+          onMonthChange(prevMonth.clone());
+        }
         this.setState({
           animating: true,
-          defaultValue: prevMonth
-        })
+          date: prevMonth,
+        });
       }
     }
   }
@@ -92,84 +110,62 @@ class Calendar extends React.PureComponent {
   /**
    * next btn click
    */
-  onNextClick() {
-    const { maxDate, onMonthChange } = this.props
-    const { defaultValue, animating } = this.state
+  onNextClick = () => {
+    const { maxDate, onMonthChange } = this.props;
+    const { date, animating } = this.state;
     if (!animating) {
-      const nextMonth = moment(defaultValue).add(1, 'month')
+      const nextMonth = moment(date).add(1, 'month');
       if (!isMonthBefore(getLastDayOfMonth(maxDate), getLastDayOfMonth(nextMonth))) {
-        onMonthChange && onMonthChange(nextMonth.clone())
+        if (typeof onMonthChange === 'function') {
+          onMonthChange(nextMonth.clone());
+        }
         this.setState({
           animating: true,
-          defaultValue: nextMonth
-        })
+          date: nextMonth,
+        });
       }
     }
   }
 
-  componentWillReceiveProps(nextProps) {
-    const { minDate: nextMinDate, maxDate: nextMaxDate, defaultValue: nextdefaultValue } = nextProps
-    const { defaultValue } = this.state
 
-    if (nextMinDate && isMonthBefore(defaultValue, nextMinDate)) {
+  changeMode = () => {
+    const {
+      dateOnly,
+    } = this.props;
+    if (!dateOnly) {
       this.setState({
-        defaultValue: nextMinDate
-      })
+        mode: 'month',
+      });
     }
-
-    if (nextMaxDate && isMonthAfter(defaultValue, nextMaxDate)) {
-      this.setState({
-        defaultValue: nextMaxDate
-      })
-    }
-
-    if (nextMaxDate && nextMinDate && isSameDay(nextMaxDate, nextMinDate)) {
-      this.setState({
-        defaultValue: nextMaxDate
-      })
-    }
-  }
-
-  changeMode(mode) {
-    this.setState({
-      mode: mode
-    })
   }
 
   monthChange(date) {
     this.setState({
       mode: 'date',
-      defaultValue: date
-    })
+      date,
+    });
   }
 
   render() {
-    const labelKeys = Object.keys(WEEK_DAYS)
-
     const {
-      defaultValue,
+      mode,
       animating,
       containerWidth,
-      mode,
-      containerHeight
-    } = this.state
+      date,
+      containerHeight,
+    } = this.state;
 
     const {
       minDate,
       maxDate,
       renderPrevBtn,
       renderNextBtn,
-      dateOnly
-    } = this.props
+      defaultValue,
+      dateOnly,
+    } = this.props;
 
-    const hidePrevBtn = this.checkIfHidePrevBtn(defaultValue, minDate)
-    const hideNextBtn = this.checkIfHideNextBtn(defaultValue, maxDate)
-
-    const year = defaultValue.get('year'), month = defaultValue.get('month') + 1
-
-    const TitleFormat = injectIntl(({year, month, day, intl}) => {
-      return `${year}${intl.formatMessage({id: 'year'})}${month}${intl.formatMessage({ id: 'month' })}`
-    })
+    const hidePrevBtn = this.checkIfHidePrevBtn(date, minDate);
+    const hideNextBtn = this.checkIfHideNextBtn(date, maxDate);
 
     return (
       <div
@@ -179,65 +175,63 @@ class Calendar extends React.PureComponent {
         }}
       >
         <CalendarHeader
-          renderNextBtn={ renderNextBtn }
-          renderPrevBtn={ renderPrevBtn }
-          defaultValue={ defaultValue }
-          hidePrevBtn={ hidePrevBtn }
-          hideNextBtn={ hideNextBtn }
-          onPrevClick={ this.onPrevClick }
-          onNextClick={ this.onNextClick }
-        >
-          <span onClick={ () => !dateOnly && this.changeMode('month') }>
-            <TitleFormat year={ year } month={ month } />
-          </span>
-        </CalendarHeader>
+          renderNextBtn={renderNextBtn}
+          renderPrevBtn={renderPrevBtn}
+          hidePrevBtn={hidePrevBtn}
+          hideNextBtn={hideNextBtn}
+          onPrevClick={this.onPrevClick}
+          onNextClick={this.onNextClick}
+          date={date}
+          onHeaderClick={this.changeMode}
+        />
         <CalendarBody
-          ref={(calendarBody) => { this.calendarBody = calendarBody }}
-          { ...this.props }
-          labels={labelKeys}
-          isAnimating={ animating }
-          bodyWidth={ containerWidth }
-          animateEnd={ () => this.setState({ animating: false }) }
-          defaultValue={ defaultValue }
+          ref={(calendarBody) => { this.calendarBody = calendarBody; }}
+          isAnimating={animating}
+          bodyWidth={containerWidth}
+          animateEnd={() => this.setState({ animating: false })}
+          date={date}
+          {...this.props}
         />
         <CSSTransition
           in={mode === 'month'}
-          appear={true}
+          appear
           classNames="month"
           timeout={300}
-          unmountOnExit>
-          {
-            <MonthPicker
-              className="rdp__months-absolute"
-              style={{
-                height: containerHeight
-              }}
-              defaultValue={ defaultValue }
-              onMonthChange={ this.monthChange }
-            />
-          }
+          unmountOnExit
+        >
+          <MonthPicker
+            className="rdp__months-absolute"
+            style={{
+              height: containerHeight,
+            }}
+            defaultValue={defaultValue}
+            onMonthChange={this.monthChange}
+          />
         </CSSTransition>
       </div>
-    )
+    );
   }
 }
 
-Calendar.propType = {
+Calendar.propTypes = {
   // visible view month
-  defaultValue: PropTypes.object,
+  defaultValue: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(moment)]),
   // start of range date or single date
-  startDate: PropTypes.object,
+  startDate: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(moment)]),
   // end of range date
-  endDate: PropTypes.object,
+  endDate: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(moment)]),
   // min month limit
-  minDate: PropTypes.object,
+  minDate: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(moment)]),
   // min month limit
-  maxDate: PropTypes.object,
+  maxDate: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(moment)]),
   // month change event
   onMonthChange: PropTypes.func,
   // date select only, without month select
-  dateOnly: PropTypes.bool
-}
+  dateOnly: PropTypes.bool,
+  mode: PropTypes.string,
+  // 是否选择范围，默认否
+  range: PropTypes.bool,
+};
 
 Calendar.defaultProps = {
   minDate: null,
@@ -245,8 +239,12 @@ Calendar.defaultProps = {
   startDate: null,
   endDate: null,
   defaultValue: moment(),
-  dateOnly: true
-}
+  dateOnly: true,
+  // 默认是选择日期
+  mode: MODE.DATE,
+  // 是否选择范围
+  range: false,
+};
 
 
-export default Calendar
+export default Calendar;
